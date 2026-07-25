@@ -9,41 +9,15 @@
 
 #define MAX_THREADS 500
 
+int input_controll(int num_arg, char *args[], int *start, int *end);
 void *scanner(void *arg);
 
 int main(int argc, char *argv[]) { 
 	
-	if (argc != 3) {
-		printf("Usage: ./scanner <start_port> <end_port>\n");
+	int start, end;
+
+	if (input_controll(argc, argv, &start, &end) == 1) {
 		return 1;
-	}
-
-	char *endptr;
-	errno = 0;
-
-	long start_long = strtol(argv[1], &endptr, 10);
-
-	if (errno == ERANGE || *endptr != '\0' || start_long < 0 || start_long > 65535) {
-		printf("Invalid start port\n");
-		return 1;
-	}
-
-	errno = 0;
-
-	long end_long = strtol(argv[2], &endptr, 10);
-
-	if (errno == ERANGE || *endptr != '\0' || end_long < 0 || end_long > 65535) {
-		printf("Invalid end port\n");
-		return 1;
-	}
-
-	int start = start_long;
-	int end = end_long;
-
-	if (start > end) {
-		int temp = start;
-		start = end;
-		end = temp;
 	}
 
 	int current_port = start;
@@ -70,6 +44,44 @@ int main(int argc, char *argv[]) {
 
 	return 0;
 }
+
+int input_controll(int num_arg, char *args[], int *start, int *end) {
+	if (num_arg != 3) {
+		printf("Usage: ./scanner <start_port> <end_port>\n");
+		return 1;
+	}
+
+	char *endptr;
+	errno = 0;
+
+	long start_long = strtol(args[1], &endptr, 10);
+
+	if (errno == ERANGE || *endptr != '\0' || start_long < 0 || start_long > 65535) {
+		printf("Invalid start port\n");
+		return 1;
+	}
+
+	errno = 0;
+
+	long end_long = strtol(args[2], &endptr, 10);
+
+	if (errno == ERANGE || *endptr != '\0' || end_long < 0 || end_long > 65535) {
+		printf("Invalid end port\n");
+		return 1;
+	}
+
+	*start = start_long; 
+	*end = end_long; 
+
+	if (*start > *end) {
+		int temp = *start;
+		*start = *end;
+		*end = temp;
+	}
+
+	return 0;
+}
+
 
 void *scanner(void *arg) {
 	int port = *(int *)arg;
