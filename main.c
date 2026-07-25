@@ -13,6 +13,7 @@
 #define MAX_THREADS 500
 
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+int results[65535];
 
 int input_controll(int num_arg, char *args[], int *start, int *end);
 void *scanner(void *arg);
@@ -49,6 +50,11 @@ int main(int argc, char *argv[]) {
 
 	pthread_mutex_destroy(&lock);
 
+	for (int k = start; k < end; k++) {
+		if (results[k] == 1) {
+			printf("Port %d is open\n", k);
+		}
+	}
 	return 0;
 }
 
@@ -132,10 +138,12 @@ void *scanner(void *arg) {
 		socklen_t so_len = sizeof(so_error);
 		getsockopt(sock, SOL_SOCKET, SO_ERROR, &so_error, &so_len);
 		if (so_error != 0 ) {
-			printf("Port %d is closed: %s\n", port, strerror(so_error));
+			pthread_mutex_lock(&lock);
+			results[port] = 2;
+			pthread_mutex_unlock(&lock);
 		} else {
 			pthread_mutex_lock(&lock);
-			printf("Port %d is open\n", port);
+			results[port] = 1;
 			pthread_mutex_unlock(&lock);
 		}
 	} 
