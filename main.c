@@ -6,8 +6,13 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include <pthread.h>
+#include <fcntl.h>
+#include <sys/select.h>
+#include <string.h>
 
 #define MAX_THREADS 500
+
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
 int input_controll(int num_arg, char *args[], int *start, int *end);
 void *scanner(void *arg);
@@ -41,6 +46,8 @@ int main(int argc, char *argv[]) {
 			pthread_join(threads[j], NULL);
 		}
 	}
+
+	pthread_mutex_destroy(&lock);
 
 	return 0;
 }
@@ -82,14 +89,24 @@ int input_controll(int num_arg, char *args[], int *start, int *end) {
 	return 0;
 }
 
-
 void *scanner(void *arg) {
 	int port = *(int *)arg;
 	
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
 	
 	if (sock == -1) {
-		printf("Could not create socket");
+		printf("Could not create socket\n");
+		return NULL;
+	}
+
+	int flags = fcntl(sock, F_GETFL, 0);
+	if (flags == -1) {
+		perror("fcntl()\n");
+		return NULL;
+	}
+
+	if (fcntl(sock, F_SETFL, flags | O_NONBLOCK) == -1) {
+		perror("fcntl()\n");
 		return NULL;
 	}
 
@@ -99,17 +116,30 @@ void *scanner(void *arg) {
 	target.sin_port = htons(port);
 	inet_pton(AF_INET, "45.33.32.156", &target.sin_addr);
 
+	fd_set writefds; 
+	FD_ZERO(&writefds);
+	FD_SET(sock, &writefds);
+
 	struct timeval timeout;
 	timeout.tv_sec = 1;
 	timeout.tv_usec = 0;
 	
-	setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
-	int result = connect(sock, (struct sockaddr *)&target, sizeof(target));
-	
-	if (result == 0) {
-		printf("Port %d is open\n", port);
-	}
-	
+	connect(sock, (struct sockaddr *)&target, sizeof(target));
+	int retval = select(sock + 1, NULL, &writefds, NULL, &timeout);
+
+	if (retval > 0) {
+		int so_error;
+		socklen_t so_len = sizeof(so_error);
+		getsockopt(sock, SOL_SOCKET, SO_ERROR, &so_error, &so_len);
+		if (so_error != 0 ) {
+			printf("Port %d is closed: %s\n", port, strerror(so_error));
+		} else {
+			pthread_mutex_lock(&lock);
+			printf("Port %d is open\n", port);
+			pthread_mutex_unlock(&lock);
+		}
+	} 
+
 	close(sock);
 
 	return NULL;
