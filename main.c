@@ -1,6 +1,7 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <sys/socket.h>
+#include <stdlib.h>
+#include <errno.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <sys/time.h>
@@ -17,8 +18,27 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	int start = atoi(argv[1]);
-	int end = atoi(argv[2]);
+	char *endptr;
+	errno = 0;
+
+	long start_long = strtol(argv[1], &endptr, 10);
+
+	if (errno == ERANGE || *endptr != '\0' || start_long < 0 || start_long > 65535) {
+		printf("Invalid start port\n");
+		return 1;
+	}
+
+	errno = 0;
+
+	long end_long = strtol(argv[2], &endptr, 10);
+
+	if (errno == ERANGE || *endptr != '\0' || end_long < 0 || end_long > 65535) {
+		printf("Invalid end port\n");
+		return 1;
+	}
+
+	int start = start_long;
+	int end = end_long;
 
 	if (start > end) {
 		int temp = start;
